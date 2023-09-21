@@ -1,0 +1,4 @@
+lolin lite:
+78:E3:6D:19:1B:6C
+devkitc v4:
+78:E3:6D:0A:01:60
