@@ -3,14 +3,16 @@
 #include <ESP32Servo.h>
 
 // Motor pins
-#define LEFT_MOTOR_FWD 33
-#define LEFT_MOTOR_REV 26
-#define RIGHT_MOTOR_FWD 27
-#define RIGHT_MOTOR_REV 32
+#define LEFT_MOTOR_FWD 16
+#define LEFT_MOTOR_REV 17
+#define RIGHT_MOTOR_FWD 18
+#define RIGHT_MOTOR_REV 19
 
 // Servo pins
-#define ARM_SERVO_PIN 25
-#define CLAW_SERVO_PIN 34
+#define ARM_SERVO_PIN 12
+#define CLAW_SERVO_PIN 14
+
+void controlMotor(int, int, int);
 
 Servo armServo;
 Servo clawServo;
