@@ -2,13 +2,13 @@
 #include <WiFi.h>
 
 // Movement Joystick
-#define JOY1_X 32
-#define JOY1_Y 33
+#define JOY1_X 39
+#define JOY1_Y 36
 
 // Claw Joystick
-#define JOY2_X 34
-#define JOY2_Y 35
-#define JOY2_Z 36  // Assuming a button for the Z axis
+#define JOY2_X 32
+#define JOY2_Y 33
+#define JOY2_Z 25  // Assuming a button for the Z axis
 
 // MAC Address of the toy - edit as required
 uint8_t toyAddress[] = {0x78, 0xE3, 0x6D, 0x0A, 0x01, 0x60};
@@ -91,5 +91,5 @@ void loop() {
   Serial.print("M" + String(myData.joy1_x) + "," + String(myData.joy1_y) + "\n"); // Movement values
   Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "," + String(myData.joy2_z) + "\n"); // Claw values
 
-  delay(10);
+  delay(500);
 }
