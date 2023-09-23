@@ -91,5 +91,9 @@ void loop() {
   Serial.print("M" + String(myData.joy1_x) + "," + String(myData.joy1_y) + "\n"); // Movement values
   Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "," + String(myData.joy2_z) + "\n"); // Claw values
 
+    // Write the values to serial monitor for debugging
+  Serial.print("M" + String(joy1_x_value) + "," + String(joy1_y_value) + "\n"); // Movement values
+  Serial.print("C" + String(joy2_x_value) + "," + String(joy2_y_value) + "," + String(joy2_z_value) + "\n"); // Claw values
+
   delay(500);
 }
