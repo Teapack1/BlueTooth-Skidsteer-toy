@@ -1,123 +1,130 @@
 #include <esp_now.h>
 #include <WiFi.h>
+#include <ESP32Servo.h>
 
-// Movement Joystick
-#define JOY1_X 39
-#define JOY1_Y 36
+// Motor pins
+#define LEFT_MOTOR_FWD 18
+#define LEFT_MOTOR_REV 19
+#define RIGHT_MOTOR_FWD 16
+#define RIGHT_MOTOR_REV 17
+#define EN1 25
+#define EN2 26
 
-// Claw Joystick
-#define JOY2_X 32
-#define JOY2_Y 33
-#define JOY2_Z 25  // Assuming a button for the Z axis
+// PWM channels
+#define LEFT_MOTOR_CHANNEL 2
+#define RIGHT_MOTOR_CHANNEL 3
 
-// MAC Address of the toy - edit as required
-uint8_t toyAddress[] = {0x78, 0xE3, 0x6D, 0x0A, 0x01, 0x60};
+// Servo pins
+#define BUCKET_SERVO_PIN 22
+#define ARM_SERVO_PIN 23
 
-// Define a data structure
+Servo bucketServo;
+Servo armServo;
+
 typedef struct struct_message {
   int joy1_x;
   int joy1_y;
   int joy2_x;
   int joy2_y;
-  int joy2_z;
 } struct_message;
 
-// Create a structured object
-struct_message myData;
+struct_message receivedData;
 
-// Peer info
-esp_now_peer_info_t peerInfo;
-
-// Calibration offsets
-const int JOY1_X_OFFSET = 2048 - 1831;
-const int JOY1_Y_OFFSET = 2048 - 1858;
-const int JOY2_X_OFFSET = 2048 - 1852;
-const int JOY2_Y_OFFSET = 2048 - 1829;
-
-// Callback function called when data is sent
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  Serial.print("\r\nLast Packet Send Status:\t");
-  Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
+  memcpy(&receivedData, incomingData, sizeof(receivedData));
+  Serial.println("Data received.");
 }
 
+void controlMotor(int fwdPin, int revPin, int speed, int channel, int enablePin) {
+  speed = constrain(speed, -255, 255);
+  
+  // Stop the motor first to ensure no conflicting signals
+  digitalWrite(fwdPin, LOW);
+  digitalWrite(revPin, LOW);
+  
+  if (speed > 0) {
+    ledcWrite(channel, speed);
+    digitalWrite(fwdPin, HIGH);
+    digitalWrite(revPin, LOW);
+  } else if (speed < 0) {
+    ledcWrite(channel, abs(speed));
+    digitalWrite(revPin, HIGH);
+    digitalWrite(fwdPin, LOW);
+  }
+ 
+  analogWrite(enablePin, abs(speed)); // Control speed using enable pin
+}
+
+
 void setup() {
-  // Set up Serial Monitor
   Serial.begin(115200);
-  delay(1000);  // Delay for stabilization
+  
+  pinMode(LEFT_MOTOR_FWD, OUTPUT);
+  pinMode(LEFT_MOTOR_REV, OUTPUT); 
+  pinMode(RIGHT_MOTOR_FWD, OUTPUT);
+  pinMode(RIGHT_MOTOR_REV, OUTPUT);
+  pinMode(EN1, OUTPUT);
+  pinMode(EN2, OUTPUT);
 
-  // Set ESP32 as a Wi-Fi Station
+  digitalWrite(LEFT_MOTOR_FWD, LOW);
+  digitalWrite(RIGHT_MOTOR_FWD, LOW);
+    digitalWrite(LEFT_MOTOR_REV, LOW);
+  digitalWrite(RIGHT_MOTOR_REV, LOW);
+
+  // configure LED PWM functionalitites
+  ledcSetup(LEFT_MOTOR_CHANNEL, 800, 8);
+  ledcSetup(RIGHT_MOTOR_CHANNEL, 800, 8);
+    // attach the channel to the GPIO to be controlled
+  ledcAttachPin(EN1, LEFT_MOTOR_CHANNEL);
+  ledcAttachPin(EN2, LEFT_MOTOR_CHANNEL);
+
+  
+  bucketServo.attach(BUCKET_SERVO_PIN);
+  armServo.attach(ARM_SERVO_PIN);
+
   WiFi.mode(WIFI_STA);
-
-  // Initialize ESP-NOW
   if (esp_now_init() != ESP_OK) {
     Serial.println("Error initializing ESP-NOW");
     return;
   }
-
-  // Register the send callback
-  esp_now_register_send_cb(OnDataSent);
-
-  // Register peer
-  memcpy(peerInfo.peer_addr, toyAddress, 6);
-  peerInfo.channel = 0;
-  peerInfo.encrypt = false;
-
-  // Add peer
-  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
-    Serial.println("Failed to add peer");
-    return;
-  }
-}
-
-
-int scaleValue(int value, int offset) {
-  if ((value) <= 2048) {
-    return map(value, 0, 2048, 0, 2048+ offset);
-  } else {
-    return map(value, 2049, 4095, 2049-offset, 4095);
-  }
+  esp_now_register_recv_cb(OnDataRecv);
 }
 
 void loop() {
-  // Read the joystick values
-  // Read the joystick values
-  int raw_joy1_x_value = analogRead(JOY1_X);
-  int raw_joy1_y_value = analogRead(JOY1_Y);
-  int raw_joy2_x_value = analogRead(JOY2_X);
-  int raw_joy2_y_value = analogRead(JOY2_Y);
-  int joy2_z_value = digitalRead(JOY2_Z);
+  int leftMotorSpeed = receivedData.joy1_y;
+  int rightMotorSpeed = -receivedData.joy1_y;
 
-  // Apply scaling based on calibration offsets
-  
-  int joy1_x_value = scaleValue(raw_joy1_x_value, JOY1_X_OFFSET);
-  int joy1_y_value = scaleValue(raw_joy1_y_value, JOY1_Y_OFFSET);
-  int joy2_x_value = scaleValue(raw_joy2_x_value, JOY2_X_OFFSET);
-  int joy2_y_value = scaleValue(raw_joy2_y_value, JOY2_Y_OFFSET);
-  
-
-  // Map the scaled joystick values for the motors
-  myData.joy1_x = map(joy1_x_value, 0, 4095, -255, 255);
-  myData.joy1_y = map(joy1_y_value, 0, 4095, -255, 255);
-  myData.joy2_x = map(joy2_x_value, 0, 4095, -255, 255);
-  myData.joy2_y = map(joy2_y_value, 0, 4095, -255, 255);
-  myData.joy2_z = joy2_z_value;
-
-  // Send message via ESP-NOW
-  esp_err_t result = esp_now_send(toyAddress, (uint8_t *)&myData, sizeof(myData));
-
-  if (result == ESP_OK) {
-    Serial.println("Sending confirmed");
-  } else {
-    Serial.println("Sending error");
+  if (receivedData.joy1_x > 0) {
+    leftMotorSpeed -= receivedData.joy1_x;
+    if (leftMotorSpeed <= -255) {
+      rightMotorSpeed += (leftMotorSpeed + 255);
+      leftMotorSpeed = -255;
+    } if (receivedData.joy1_y > -10 && receivedData.joy1_y < 10) {
+      rightMotorSpeed = leftMotorSpeed;
+    }
+    
+  } else if (receivedData.joy1_x < 0) {
+    rightMotorSpeed += abs(receivedData.joy1_x);
+    if (rightMotorSpeed >= 255) {
+      leftMotorSpeed += (rightMotorSpeed - 255);
+      rightMotorSpeed = 255;
+    } if (receivedData.joy1_y > -10 && receivedData.joy1_y < 10) {
+      leftMotorSpeed = rightMotorSpeed;
+    }
   }
+  
+  controlMotor(LEFT_MOTOR_FWD, LEFT_MOTOR_REV, leftMotorSpeed, LEFT_MOTOR_CHANNEL, EN1);
+  controlMotor(RIGHT_MOTOR_FWD, RIGHT_MOTOR_REV, rightMotorSpeed, RIGHT_MOTOR_CHANNEL, EN2);
 
-  // Write the values to serial monitor for debugging
-  Serial.print("M" + String(myData.joy1_x) + "," + String(myData.joy1_y) + "\n"); // Movement values
-  Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "," + String(myData.joy2_z) + "\n"); // Claw values
+  bucketServo.write(map(receivedData.joy2_x, -255, 255, 0, 100));
+  armServo.write(map(receivedData.joy2_y, -255, 255, 0, 100));
 
-  // Write the raw values to serial monitor for debugging
-  Serial.print("M" + String(joy1_x_value) + "," + String(joy1_y_value) + "\n"); // Movement values
-  Serial.print("C" + String(joy2_x_value) + "," + String(joy2_y_value) + "," + String(joy2_z_value) + "\n"); // Claw values
+  Serial.println(receivedData.joy1_x);
+  Serial.println(receivedData.joy1_y);
+  Serial.println(receivedData.joy2_x);
+  Serial.println(receivedData.joy2_y);
+  Serial.println(leftMotorSpeed);
+  Serial.println(rightMotorSpeed);
 
-  delay(500);
+  delay(1000);
 }

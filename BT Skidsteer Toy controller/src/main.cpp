@@ -28,6 +28,12 @@ struct_message myData;
 // Peer info
 esp_now_peer_info_t peerInfo;
 
+// Calibration offsets
+const int JOY1_X_OFFSET = 2048 - 1831;
+const int JOY1_Y_OFFSET = 2048 - 1858;
+const int JOY2_X_OFFSET = 2048 - 1852;
+const int JOY2_Y_OFFSET = 2048 - 1829;
+
 // Callback function called when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("\r\nLast Packet Send Status:\t");
@@ -63,15 +69,33 @@ void setup() {
   }
 }
 
+
+int scaleValue(int value, int offset) {
+  if ((value) <= 2048) {
+    return map(value, 0, 2048, 0, 2048+ offset);
+  } else {
+    return map(value, 2049, 4095, 2049-offset, 4095);
+  }
+}
+
 void loop() {
   // Read the joystick values
-  int joy1_x_value = analogRead(JOY1_X);
-  int joy1_y_value = analogRead(JOY1_Y);
-  int joy2_x_value = analogRead(JOY2_X);
-  int joy2_y_value = analogRead(JOY2_Y);
+  // Read the joystick values
+  int raw_joy1_x_value = analogRead(JOY1_X);
+  int raw_joy1_y_value = analogRead(JOY1_Y);
+  int raw_joy2_x_value = analogRead(JOY2_X);
+  int raw_joy2_y_value = analogRead(JOY2_Y);
   int joy2_z_value = digitalRead(JOY2_Z);
 
-  // Map joystick values for the motors
+  // Apply scaling based on calibration offsets
+  
+  int joy1_x_value = scaleValue(raw_joy1_x_value, JOY1_X_OFFSET);
+  int joy1_y_value = scaleValue(raw_joy1_y_value, JOY1_Y_OFFSET);
+  int joy2_x_value = scaleValue(raw_joy2_x_value, JOY2_X_OFFSET);
+  int joy2_y_value = scaleValue(raw_joy2_y_value, JOY2_Y_OFFSET);
+  
+
+  // Map the scaled joystick values for the motors
   myData.joy1_x = map(joy1_x_value, 0, 4095, -255, 255);
   myData.joy1_y = map(joy1_y_value, 0, 4095, -255, 255);
   myData.joy2_x = map(joy2_x_value, 0, 4095, -255, 255);
@@ -91,7 +115,7 @@ void loop() {
   Serial.print("M" + String(myData.joy1_x) + "," + String(myData.joy1_y) + "\n"); // Movement values
   Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "," + String(myData.joy2_z) + "\n"); // Claw values
 
-    // Write the values to serial monitor for debugging
+  // Write the raw values to serial monitor for debugging
   Serial.print("M" + String(joy1_x_value) + "," + String(joy1_y_value) + "\n"); // Movement values
   Serial.print("C" + String(joy2_x_value) + "," + String(joy2_y_value) + "," + String(joy2_z_value) + "\n"); // Claw values
 
