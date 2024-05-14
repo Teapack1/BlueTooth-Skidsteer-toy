@@ -11,9 +11,9 @@
 #define JOY2_Z 25  // Assuming a button for the Z axis
 
 // MAC Address of the toy - edit as required
-uint8_t toyAddress[] = {0x78, 0xE3, 0x6D, 0x0A, 0x01, 0x60};
+uint8_t toyAddress[] = {0x24, 0x0A, 0xC4, 0x8B, 0x6C, 0xE8}; //DEVKITV1
 
-// Define a data structure
+// Define a data structure 
 typedef struct struct_message {
   int joy1_x;
   int joy1_y;
@@ -110,7 +110,7 @@ void loop() {
   } else {
     Serial.println("Sending error");
   }
-
+  Serial.println("0x24, 0x0A, 0xC4, 0x8B, 0x6C, 0xE8");
   // Write the values to serial monitor for debugging
   Serial.print("M" + String(myData.joy1_x) + "," + String(myData.joy1_y) + "\n"); // Movement values
   Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "," + String(myData.joy2_z) + "\n"); // Claw values
@@ -119,5 +119,5 @@ void loop() {
   Serial.print("M" + String(joy1_x_value) + "," + String(joy1_y_value) + "\n"); // Movement values
   Serial.print("C" + String(joy2_x_value) + "," + String(joy2_y_value) + "," + String(joy2_z_value) + "\n"); // Claw values
 
-  delay(500);
+  delay(50);
 }

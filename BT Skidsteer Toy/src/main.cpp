@@ -3,12 +3,12 @@
 #include <ESP32Servo.h>
 
 // Motor pins
-#define LEFT_MOTOR_FWD 18
-#define LEFT_MOTOR_REV 19
-#define RIGHT_MOTOR_FWD 16
-#define RIGHT_MOTOR_REV 17
-#define EN1 25
-#define EN2 26
+#define LEFT_MOTOR_FWD 32
+#define LEFT_MOTOR_REV 13
+#define RIGHT_MOTOR_FWD 12
+#define RIGHT_MOTOR_REV 26
+#define EN1 14
+#define EN2 27
 
 // PWM channels
 #define LEFT_MOTOR_CHANNEL 2
@@ -30,9 +30,26 @@ typedef struct struct_message {
 
 struct_message receivedData;
 
+int mapServoPosition(int joy_value) {
+  if (joy_value < 0) {
+    return map(joy_value, -255, 0, 0, 40);
+  } else {
+    return map(joy_value, 0, 255, 41, 55);
+  }
+}
+
+int mapBucketServoPosition(int joy_value) {
+  if (joy_value < 0) {
+    return map(joy_value, -255, 0, 0, 90);
+  } else {
+    return map(joy_value, 0, 255, 91, 120);
+  }
+}
+
+
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
   memcpy(&receivedData, incomingData, sizeof(receivedData));
-  Serial.println("Data received.");
+//  Serial.println("Data received.");
 }
 
 void controlMotor(int fwdPin, int revPin, int speed, int channel, int enablePin) {
@@ -52,8 +69,10 @@ void controlMotor(int fwdPin, int revPin, int speed, int channel, int enablePin)
     digitalWrite(fwdPin, LOW);
   }
  
-  analogWrite(enablePin, abs(speed)); // Control speed using enable pin
+  // This line was using analogWrite, which is incorrect for ESP32. Use ledcWrite instead.
+  ledcWrite(channel, abs(speed)); // Control speed using PWM channel
 }
+
 
 
 void setup() {
@@ -68,7 +87,7 @@ void setup() {
 
   digitalWrite(LEFT_MOTOR_FWD, LOW);
   digitalWrite(RIGHT_MOTOR_FWD, LOW);
-    digitalWrite(LEFT_MOTOR_REV, LOW);
+  digitalWrite(LEFT_MOTOR_REV, LOW);
   digitalWrite(RIGHT_MOTOR_REV, LOW);
 
   // configure LED PWM functionalitites
@@ -76,7 +95,7 @@ void setup() {
   ledcSetup(RIGHT_MOTOR_CHANNEL, 800, 8);
     // attach the channel to the GPIO to be controlled
   ledcAttachPin(EN1, LEFT_MOTOR_CHANNEL);
-  ledcAttachPin(EN2, LEFT_MOTOR_CHANNEL);
+  ledcAttachPin(EN2, RIGHT_MOTOR_CHANNEL);
 
   
   bucketServo.attach(BUCKET_SERVO_PIN);
@@ -91,8 +110,8 @@ void setup() {
 }
 
 void loop() {
-  int leftMotorSpeed = receivedData.joy1_y;
-  int rightMotorSpeed = -receivedData.joy1_y;
+  int leftMotorSpeed = -receivedData.joy1_y;
+  int rightMotorSpeed = receivedData.joy1_y;
 
   if (receivedData.joy1_x > 0) {
     leftMotorSpeed -= receivedData.joy1_x;
@@ -113,11 +132,11 @@ void loop() {
     }
   }
   
-  controlMotor(LEFT_MOTOR_FWD, LEFT_MOTOR_REV, leftMotorSpeed, LEFT_MOTOR_CHANNEL, EN1);
-  controlMotor(RIGHT_MOTOR_FWD, RIGHT_MOTOR_REV, rightMotorSpeed, RIGHT_MOTOR_CHANNEL, EN2);
+  controlMotor(LEFT_MOTOR_FWD, LEFT_MOTOR_REV, leftMotorSpeed, LEFT_MOTOR_CHANNEL, EN2);
+  controlMotor(RIGHT_MOTOR_FWD, RIGHT_MOTOR_REV, rightMotorSpeed, RIGHT_MOTOR_CHANNEL, EN1);
 
-  bucketServo.write(map(receivedData.joy2_x, -255, 255, 0, 100));
-  armServo.write(map(receivedData.joy2_y, -255, 255, 0, 100));
+  bucketServo.write(mapBucketServoPosition(receivedData.joy2_x));
+  armServo.write(mapServoPosition(receivedData.joy2_y));
 
   Serial.println(receivedData.joy1_x);
   Serial.println(receivedData.joy1_y);
@@ -126,5 +145,5 @@ void loop() {
   Serial.println(leftMotorSpeed);
   Serial.println(rightMotorSpeed);
 
-  delay(1000);
+  delay(50);
 }
