@@ -28,11 +28,23 @@ struct_message myData;
 // Peer info
 esp_now_peer_info_t peerInfo;
 
+/*
 // Calibration offsets
 const int JOY1_X_OFFSET = 2048 - 1831;
 const int JOY1_Y_OFFSET = 2048 - 1858;
 const int JOY2_X_OFFSET = 2048 - 1852;
 const int JOY2_Y_OFFSET = 2048 - 1829;
+*/
+
+
+// Calibration offsets
+const int JOY1_X_OFFSET = 2048 - 2180;
+const int JOY1_Y_OFFSET = 2048 - 1920;
+const int JOY2_X_OFFSET = 2048 - 1980;
+const int JOY2_Y_OFFSET = 2048 - 2140;
+
+
+
 
 // Callback function called when data is sent
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -70,37 +82,48 @@ void setup() {
 }
 
 
-int scaleValue(int value, int offset) {
-  if ((value) <= 2048) {
-    return map(value, 0, 2048, 0, 2048+ offset);
+int scaleValue(int value, int offset, int minValue, int maxValue) {
+  int midpoint = (maxValue + minValue) / 2;
+  if ((value) <= midpoint) {
+    return map(value, minValue, midpoint, 0, 2048+ offset);
   } else {
-    return map(value, 2049, 4095, 2049-offset, 4095);
+    return map(value, (midpoint+1), maxValue, 2049-offset, 4095);
   }
 }
 
+
+
 void loop() {
-  // Read the joystick values
   // Read the joystick values
   int raw_joy1_x_value = analogRead(JOY1_X);
   int raw_joy1_y_value = analogRead(JOY1_Y);
   int raw_joy2_x_value = analogRead(JOY2_X);
   int raw_joy2_y_value = analogRead(JOY2_Y);
-  int joy2_z_value = digitalRead(JOY2_Z);
+  //int joy2_z_value = digitalRead(JOY2_Z);
+
+    // Write the values to serial monitor for debugging
+  Serial.print("raw_M" + String(raw_joy1_x_value) + "," + String(raw_joy1_y_value) + "\n"); // Movement values
+  Serial.print("raw_C" + String(raw_joy2_x_value) + "," + String(raw_joy2_y_value) + "\n"); // Claw values
+
+
 
   // Apply scaling based on calibration offsets
   
-  int joy1_x_value = scaleValue(raw_joy1_x_value, JOY1_X_OFFSET);
-  int joy1_y_value = scaleValue(raw_joy1_y_value, JOY1_Y_OFFSET);
-  int joy2_x_value = scaleValue(raw_joy2_x_value, JOY2_X_OFFSET);
-  int joy2_y_value = scaleValue(raw_joy2_y_value, JOY2_Y_OFFSET);
-  
+  int joy1_x_value = scaleValue(raw_joy1_x_value, JOY1_X_OFFSET, 3300, 900);
+  int joy1_y_value = scaleValue(raw_joy1_y_value, JOY1_Y_OFFSET, 450, 2920);
+  int joy2_x_value = scaleValue(raw_joy2_x_value, JOY2_X_OFFSET, 460, 3100);
+  int joy2_y_value = scaleValue(raw_joy2_y_value, JOY2_Y_OFFSET, 2750, 500);
+
 
   // Map the scaled joystick values for the motors
   myData.joy1_x = map(joy1_x_value, 0, 4095, -255, 255);
   myData.joy1_y = map(joy1_y_value, 0, 4095, -255, 255);
   myData.joy2_x = map(joy2_x_value, 0, 4095, -255, 255);
   myData.joy2_y = map(joy2_y_value, 0, 4095, -255, 255);
-  myData.joy2_z = joy2_z_value;
+  //myData.joy2_z = joy2_z_value;
+
+
+
 
   // Send message via ESP-NOW
   esp_err_t result = esp_now_send(toyAddress, (uint8_t *)&myData, sizeof(myData));
@@ -111,13 +134,16 @@ void loop() {
     Serial.println("Sending error");
   }
   Serial.println("0x24, 0x0A, 0xC4, 0x8B, 0x6C, 0xE8");
+
+
+
   // Write the values to serial monitor for debugging
   Serial.print("M" + String(myData.joy1_x) + "," + String(myData.joy1_y) + "\n"); // Movement values
-  Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "," + String(myData.joy2_z) + "\n"); // Claw values
+  Serial.print("C" + String(myData.joy2_x) + "," + String(myData.joy2_y) + "\n"); // Claw values
 
   // Write the raw values to serial monitor for debugging
   Serial.print("M" + String(joy1_x_value) + "," + String(joy1_y_value) + "\n"); // Movement values
-  Serial.print("C" + String(joy2_x_value) + "," + String(joy2_y_value) + "," + String(joy2_z_value) + "\n"); // Claw values
+  Serial.print("C" + String(joy2_x_value) + "," + String(joy2_y_value) + "\n"); // Claw values
 
   delay(50);
 }
