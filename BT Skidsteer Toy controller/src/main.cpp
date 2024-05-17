@@ -39,7 +39,7 @@ const int JOY2_Y_OFFSET = 2048 - 1829;
 
 // Calibration offsets
 const int JOY1_X_OFFSET = 2048 - 2180;
-const int JOY1_Y_OFFSET = 2048 - 1920;
+const int JOY1_Y_OFFSET = 2048 - 2150;
 const int JOY2_X_OFFSET = 2048 - 1980;
 const int JOY2_Y_OFFSET = 2048 - 2140;
 
@@ -109,8 +109,8 @@ void loop() {
 
   // Apply scaling based on calibration offsets
   
-  int joy1_x_value = scaleValue(raw_joy1_x_value, JOY1_X_OFFSET, 3300, 900);
-  int joy1_y_value = scaleValue(raw_joy1_y_value, JOY1_Y_OFFSET, 450, 2920);
+  int joy1_x_value = scaleValue(raw_joy1_x_value, JOY1_X_OFFSET, 3200, 900);
+  int joy1_y_value = scaleValue(raw_joy1_y_value, JOY1_Y_OFFSET, 2850, 650);
   int joy2_x_value = scaleValue(raw_joy2_x_value, JOY2_X_OFFSET, 460, 3100);
   int joy2_y_value = scaleValue(raw_joy2_y_value, JOY2_Y_OFFSET, 2750, 500);
 
